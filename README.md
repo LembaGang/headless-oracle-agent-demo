@@ -17,11 +17,10 @@
 </p>
 
 <p align="center">
-  <!-- HUMAN TASK: Record a 30-second GIF showing examples/04-x402-autopay/agent.py running:
-       terminal shows agent paying 0.001 USDC → minting key → querying oracle → OPEN receipt
-       Save as docs/demo.gif and uncomment the line below. -->
-  <!-- <img src="docs/demo.gif" alt="Agent autonomously pays for market data" width="700" /> -->
+  <img src="https://api.headlessoracle.com/v5/card/XNYS" alt="NYSE live market status — powered by Headless Oracle" width="600" />
 </p>
+
+<p align="center"><em>↑ Live card — fetches a signed market receipt on every render. No recording. Always current.</em></p>
 
 ---
 
