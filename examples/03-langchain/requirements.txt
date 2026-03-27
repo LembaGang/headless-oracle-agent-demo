@@ -1,0 +1,3 @@
+headless-oracle-langchain>=1.0.1
+langchain-openai>=0.1
+langchain>=0.2

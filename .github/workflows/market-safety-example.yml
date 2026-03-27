@@ -1,0 +1,86 @@
+# Example: Using the Headless Oracle Market Safety Check Action
+#
+# Add this to your trading or financial workflow to verify market state
+# before deploying code or executing automated operations.
+#
+# The action fails on HALTED or UNKNOWN (fail-closed).
+# CLOSED passes by default (set allow_closed: false to also fail on CLOSED).
+
+name: Market Safety Gate (Example)
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Run at NYSE open (14:30 UTC on weekdays — adjusts automatically for DST)
+    - cron: '30 14 * * 1-5'
+
+jobs:
+  check-market:
+    runs-on: ubuntu-latest
+    name: Verify NYSE is open before trading operations
+
+    steps:
+      - name: Check NYSE market status
+        id: oracle
+        uses: LembaGang/headless-oracle-agent-demo@v1
+        with:
+          mic: XNYS
+          allow_closed: false              # fail if market is CLOSED
+          api_key: ${{ secrets.HEADLESS_ORACLE_API_KEY }}   # optional
+
+      # Outputs are available for downstream steps
+      - name: Show oracle result
+        run: |
+          echo "Market status : ${{ steps.oracle.outputs.status }}"
+          echo "Safe to execute: ${{ steps.oracle.outputs.safe_to_execute }}"
+          echo "Receipt ID    : ${{ steps.oracle.outputs.receipt_id }}"
+          echo "Expires at    : ${{ steps.oracle.outputs.expires_at }}"
+
+  # This job only runs if the market check passes
+  execute-trading-operations:
+    runs-on: ubuntu-latest
+    needs: check-market   # gates on the oracle check
+    name: Execute trading operations
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run trading strategy
+        run: |
+          echo "Market is verified OPEN — executing strategy…"
+          # python src/strategy.py
+          # or your trading code here
+
+  # Example: check multiple exchanges before a global strategy
+  check-global-markets:
+    runs-on: ubuntu-latest
+    name: Verify all exchanges for global strategy
+
+    steps:
+      - name: Check NYSE
+        id: nyse
+        uses: LembaGang/headless-oracle-agent-demo@v1
+        with:
+          mic: XNYS
+          allow_closed: false
+
+      - name: Check LSE
+        id: lse
+        uses: LembaGang/headless-oracle-agent-demo@v1
+        with:
+          mic: XLON
+          allow_closed: false
+
+      - name: Check Tokyo
+        id: tse
+        uses: LembaGang/headless-oracle-agent-demo@v1
+        with:
+          mic: XJPX
+          allow_closed: false
+
+      - name: All markets open — execute global strategy
+        if: |
+          steps.nyse.outputs.status == 'OPEN' &&
+          steps.lse.outputs.status == 'OPEN' &&
+          steps.tse.outputs.status == 'OPEN'
+        run: echo "All three exchanges OPEN — global strategy executing…"

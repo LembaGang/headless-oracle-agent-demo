@@ -1,0 +1,49 @@
+name: 'Headless Oracle — Market Safety Check'
+description: >
+  Verify market state before executing financial operations. Returns a cryptographically
+  signed receipt. Fails the workflow on HALTED or UNKNOWN (fail-closed). First finance
+  GitHub Action in the marketplace.
+author: 'LembaGang'
+
+branding:
+  icon: 'shield'
+  color: 'green'
+
+inputs:
+  mic:
+    description: >
+      ISO 10383 Market Identifier Code. Equities: XNYS, XNAS, XLON, XJPX, XPAR, XHKG,
+      XSES, XASX, XBOM, XNSE, XSHG, XSHE, XKRX, XJSE, XBSP, XSWX, XMIL, XIST, XSAU,
+      XDFM, XNZE, XHEL, XSTO. Derivatives: XCBT, XNYM, XCBO. Crypto (24/7): XCOI, XBIN.
+    required: false
+    default: 'XNYS'
+  allow_closed:
+    description: >
+      Continue the workflow when the market is CLOSED (e.g. for pre-market setup tasks).
+      Default: true — only HALTED and UNKNOWN fail the workflow.
+      Set to false to also fail when market is CLOSED.
+    required: false
+    default: 'true'
+  api_key:
+    description: >
+      Headless Oracle API key for live signed receipts (receipt_mode: live).
+      If omitted, uses the public demo endpoint (receipt_mode: demo, 28 exchanges, no key needed).
+      Store as a GitHub secret: ${{ secrets.HEADLESS_ORACLE_API_KEY }}
+    required: false
+    default: ''
+
+outputs:
+  status:
+    description: 'Market status: OPEN, CLOSED, HALTED, or UNKNOWN'
+  safe_to_execute:
+    description: "'true' if market is OPEN and safe to proceed, 'false' otherwise"
+  receipt_id:
+    description: 'Signed receipt ID — use as an audit trail reference'
+  expires_at:
+    description: 'ISO 8601 timestamp when this receipt expires (60s TTL)'
+  signature:
+    description: 'Ed25519 hex signature — verify with @headlessoracle/verify or /v5/conformance-vectors'
+
+runs:
+  using: 'node20'
+  main: 'dist/index.js'

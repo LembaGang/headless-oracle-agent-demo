@@ -1,0 +1,30 @@
+{
+  "name": "headless-oracle-agent-demo",
+  "version": "1.0.0",
+  "description": "Market safety primitive for autonomous trading agents. First finance GitHub Action + x402 self-paying agent demo.",
+  "main": "dist/index.js",
+  "scripts": {
+    "test": "node dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/LembaGang/headless-oracle-agent-demo.git"
+  },
+  "keywords": [
+    "github-action",
+    "market-data",
+    "trading",
+    "ai-agents",
+    "x402",
+    "ed25519",
+    "market-status",
+    "fail-closed",
+    "headless-oracle",
+    "langchain",
+    "crewai"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  }
+}

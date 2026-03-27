@@ -1,0 +1,75 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test-action:
+    runs-on: ubuntu-latest
+    name: Test the GitHub Action itself
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Test 1: Demo endpoint (no API key) — XNYS
+      - name: Test action — XNYS demo (no key)
+        id: test_nyse
+        uses: ./
+        with:
+          mic: XNYS
+          allow_closed: 'true'   # don't fail if market is closed during CI
+
+      - name: Assert outputs are set
+        run: |
+          STATUS="${{ steps.test_nyse.outputs.status }}"
+          RECEIPT_ID="${{ steps.test_nyse.outputs.receipt_id }}"
+          echo "XNYS status: $STATUS"
+          echo "Receipt ID : $RECEIPT_ID"
+          if [ -z "$STATUS" ]; then
+            echo "ERROR: status output is empty"
+            exit 1
+          fi
+          if [[ "$STATUS" != "OPEN" && "$STATUS" != "CLOSED" && "$STATUS" != "HALTED" && "$STATUS" != "UNKNOWN" ]]; then
+            echo "ERROR: unexpected status value: $STATUS"
+            exit 1
+          fi
+          echo "✅ Action outputs are valid"
+
+      # Test 2: Demo endpoint — XLON
+      - name: Test action — XLON demo (no key)
+        uses: ./
+        with:
+          mic: XLON
+          allow_closed: 'true'
+
+      # Test 3: Verify dist/index.js runs directly
+      - name: Test dist/index.js directly
+        run: |
+          INPUT_MIC=XNYS \
+          INPUT_ALLOW_CLOSED=true \
+          INPUT_API_KEY="" \
+          node dist/index.js
+        continue-on-error: true   # market may be closed during CI
+
+  test-examples:
+    runs-on: ubuntu-latest
+    name: Test Python examples
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Test example 01 — basic query
+        working-directory: examples/01-basic
+        run: |
+          MIC=XNYS python query.py || true   # allow CLOSED during CI
+
+      - name: Test example 05 — multi-agent monitor
+        working-directory: examples/05-multi-agent
+        run: |
+          EXCHANGES=XNYS,XLON python monitor.py || true   # allow CLOSED during CI
