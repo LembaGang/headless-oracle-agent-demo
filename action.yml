@@ -1,8 +1,8 @@
 name: 'Headless Oracle — Market Safety Check'
 description: >
-  Verify market state before executing financial operations. Returns a cryptographically
-  signed receipt. Fails the workflow on HALTED or UNKNOWN (fail-closed). First finance
-  GitHub Action in the marketplace.
+  Block trades when markets are closed, halted, or unknown. Ed25519-signed
+  receipt from 28 global exchanges. Fail-closed: HALTED and UNKNOWN always
+  fail the workflow.
 author: 'LembaGang'
 
 branding:
