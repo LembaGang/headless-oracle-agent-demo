@@ -1,8 +1,5 @@
 name: 'Headless Oracle — Market Safety Check'
-description: >
-  Block trades when markets are closed, halted, or unknown. Ed25519-signed
-  receipt from 28 global exchanges. Fail-closed: HALTED and UNKNOWN always
-  fail the workflow.
+description: 'Block trades when markets are closed, halted, or unknown. Ed25519-signed. 28 exchanges. Fail-closed.'
 author: 'LembaGang'
 
 branding:
