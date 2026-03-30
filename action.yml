@@ -25,7 +25,7 @@ inputs:
     description: >
       Headless Oracle API key for live signed receipts (receipt_mode: live).
       If omitted, uses the public demo endpoint (receipt_mode: demo, 28 exchanges, no key needed).
-      Store as a GitHub secret: ${{ secrets.HEADLESS_ORACLE_API_KEY }}
+      Store as a GitHub Actions secret named HEADLESS_ORACLE_API_KEY and pass via the api_key input.
     required: false
     default: ''
 
