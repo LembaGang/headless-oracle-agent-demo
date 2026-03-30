@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Headless Oracle — Market Safety Check GitHub Action
- * Pure Node.js 20, zero npm dependencies.
+ * Pure Node.js 24, zero npm dependencies.
  * Uses native fetch (Node 18+) and GitHub Actions environment protocol.
  */
 
