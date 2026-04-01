@@ -51,36 +51,60 @@ jobs:
           # python src/strategy.py
           # or your trading code here
 
-  # Example: check multiple exchanges before a global strategy
+  # Example: check multiple exchanges for a global strategy.
+  #
+  # These three markets are never simultaneously open (NYSE is EST, LSE is GMT,
+  # Tokyo is JST), so the correct pattern is fail-closed per-market: check each
+  # exchange independently, then execute only for the markets that are currently
+  # OPEN. HALTED or UNKNOWN still fail the step — that's the safety guarantee.
   check-global-markets:
     runs-on: ubuntu-latest
     name: Verify all exchanges for global strategy
 
     steps:
-      - name: Check NYSE
+      # allow_closed defaults to true — CLOSED does not fail the step.
+      # HALTED and UNKNOWN still cause the action to exit non-zero (fail-closed).
+      - name: Check NYSE (XNYS)
         id: nyse
         uses: LembaGang/headless-oracle-agent-demo@v1
         with:
           mic: XNYS
-          allow_closed: false
 
-      - name: Check LSE
+      - name: Check LSE (XLON)
         id: lse
         uses: LembaGang/headless-oracle-agent-demo@v1
         with:
           mic: XLON
-          allow_closed: false
 
-      - name: Check Tokyo
+      - name: Check Tokyo (XJPX)
         id: tse
         uses: LembaGang/headless-oracle-agent-demo@v1
         with:
           mic: XJPX
-          allow_closed: false
 
-      - name: All markets open — execute global strategy
-        if: |
-          steps.nyse.outputs.status == 'OPEN' &&
-          steps.lse.outputs.status == 'OPEN' &&
-          steps.tse.outputs.status == 'OPEN'
-        run: echo "All three exchanges OPEN — global strategy executing…"
+      # Execute strategy only for the markets that are currently OPEN.
+      # Markets that are CLOSED are skipped — not an error, just outside hours.
+      # Any HALTED or UNKNOWN result fails the oracle step above before reaching here.
+      - name: Execute NYSE strategy (if OPEN)
+        if: steps.nyse.outputs.status == 'OPEN'
+        run: |
+          echo "NYSE (XNYS) is OPEN — executing US equity strategy…"
+          # python src/strategy_us.py
+
+      - name: Execute LSE strategy (if OPEN)
+        if: steps.lse.outputs.status == 'OPEN'
+        run: |
+          echo "LSE (XLON) is OPEN — executing UK equity strategy…"
+          # python src/strategy_uk.py
+
+      - name: Execute Tokyo strategy (if OPEN)
+        if: steps.tse.outputs.status == 'OPEN'
+        run: |
+          echo "Tokyo (XJPX) is OPEN — executing JP equity strategy…"
+          # python src/strategy_jp.py
+
+      - name: Report which markets were active
+        run: |
+          echo "NYSE  (XNYS): ${{ steps.nyse.outputs.status }}"
+          echo "LSE   (XLON): ${{ steps.lse.outputs.status }}"
+          echo "Tokyo (XJPX): ${{ steps.tse.outputs.status }}"
