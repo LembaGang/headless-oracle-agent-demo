@@ -10,8 +10,15 @@ name: Market Safety Gate (Example)
 
 on:
   workflow_dispatch:
+    inputs:
+      tamper:
+        description: 'Change one signed field of the receipt before verifying it (proves the verify step fails a bad signature)'
+        type: boolean
+        default: false
   schedule:
-    # Run at NYSE open (14:30 UTC on weekdays — adjusts automatically for DST)
+    # GitHub cron runs in UTC and does not follow daylight saving time.
+    # 14:30 UTC is the NYSE open only in winter (EST, UTC-5); in summer (EDT,
+    # UTC-4) the open is 13:30 UTC, so this run lands an hour after it.
     - cron: '30 14 * * 1-5'
 
 jobs:
@@ -19,7 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     name: Verify NYSE is open before trading operations
     outputs:
-      status: ${{ steps.oracle.outputs.status }}
+      # The status of the receipt whose signature was verified, not the raw action output.
+      status: ${{ steps.verify.outputs.status }}
 
     steps:
       # allow_closed: true so a CLOSED market is a held trade, not a red run.
@@ -40,10 +48,57 @@ jobs:
           echo "Receipt ID    : ${{ steps.oracle.outputs.receipt_id }}"
           echo "Expires at    : ${{ steps.oracle.outputs.expires_at }}"
 
-      # OPEN goes on to trade, CLOSED holds and ends green; any other status fails.
+      # The action's outputs carry the signature but not the signed fields, so this
+      # step fetches the receipt from the same endpoint the action uses and checks
+      # its Ed25519 signature against the published keys before anything trusts it.
+      # A bad or missing signature, an unknown key or an expired receipt fails the job.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Verify receipt signature
+        id: verify
+        env:
+          HEADLESS_ORACLE_API_KEY: ${{ secrets.HEADLESS_ORACLE_API_KEY }}
+          TAMPER: ${{ inputs.tamper == true }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/verify" && cd "$RUNNER_TEMP/verify"
+          npm init -y > /dev/null
+          npm install --no-audit --no-fund @headlessoracle/verify@1.1.0 > /dev/null
+          cat > verify.mjs <<'JS'
+          import { appendFileSync } from 'node:fs';
+          import { EOL } from 'node:os';
+          import { verify } from '@headlessoracle/verify';
+
+          const key = process.env.HEADLESS_ORACLE_API_KEY || '';
+          const url = key
+            ? 'https://api.headlessoracle.com/v5/status?mic=XNYS'
+            : 'https://api.headlessoracle.com/v5/demo?mic=XNYS';
+          const res = await fetch(url, key ? { headers: { 'X-Oracle-Key': key } } : {});
+          if (!res.ok) { console.log(`::error::Oracle returned HTTP ${res.status} (fail-closed)`); process.exit(1); }
+          const wrapper = await res.json();
+          const receipt = { ...(wrapper.receipt ?? wrapper) };
+
+          if (process.env.TAMPER === 'true') {
+            receipt.status = receipt.status === 'OPEN' ? 'CLOSED' : 'OPEN';
+            console.log(`tamper=true: status field changed to ${receipt.status} after signing`);
+          }
+
+          const { valid, reason } = await verify(receipt, { keysUrl: 'https://api.headlessoracle.com/v5/keys' });
+          if (!valid) {
+            console.log(`::error::Receipt ${receipt.receipt_id ?? '(no id)'} failed verification: ${reason} (fail-closed)`);
+            process.exit(1);
+          }
+          console.log(`signature verified: receipt ${receipt.receipt_id}, ${receipt.mic} ${receipt.status}, key ${receipt.public_key_id}`);
+          appendFileSync(process.env.GITHUB_OUTPUT, `status=${receipt.status}${EOL}`);
+          JS
+          node verify.mjs
+
+      # Decides on the verified receipt: OPEN goes on to trade, CLOSED holds and
+      # ends green; any other status fails.
       - name: Gate decision
         env:
-          STATUS: ${{ steps.oracle.outputs.status }}
+          STATUS: ${{ steps.verify.outputs.status }}
         run: |
           case "$STATUS" in
             OPEN)   echo "NYSE OPEN: trading may proceed" >> "$GITHUB_STEP_SUMMARY" ;;
